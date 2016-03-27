@@ -1,156 +1,93 @@
 <?php
 
-interface Observer
+interface Subject
 {
-    public function addCurrency(Currency $currency);
+    public function attach(Observer2 $observer);
+    public function attachMultiple(array $observers);
+    public function detach(Observer2 $observer);
+    public function notify();
 }
 
-interface Currency
+interface Observer2
 {
-    public function __construct($price);
-    public function update();
-    public function getPrice();
+    public function handle();
 }
 
-class PriceSimulator implements Observer
+class LoginEvent implements Subject
 {
-    private $_currencies = null;
+    /**
+     * @var SplObjectStorage
+     */
+    private $observers;
 
     public function __construct()
     {
-        $this->_currencies = array();
+        $this->observers = new SplObjectStorage();
     }
 
-    public function addCurrency(Currency $currency)
+    public function attach(Observer2 $observer)
     {
-        array_push($this->_currencies, $currency);
+        $this->observers->attach($observer);
 
         return $this;
     }
 
-    public function updatePrices()
+    public function attachMultiple(array $observers)
     {
-        foreach ($this->_currencies as $currency) {
-            /** @var Currency $currency */
-            $currency->update();
+        foreach ($observers as $observer) {
+            $this->attach($observer);
         }
 
         return $this;
     }
-}
 
-class Pound implements Currency
-{
-    private $_price;
-
-    public function __construct($price)
+    public function detach(Observer2 $observer)
     {
-        $this->_price = $price;
-        echo self::class . " Original Price: {$price}" . PHP_EOL;
-    }
-
-    public function update()
-    {
-        $this->_price = $this->getPrice();
-        echo self::class . " Updated Price: {$this->_price}" . PHP_EOL;
+        $this->observers->detach($observer);
 
         return $this;
     }
 
-    public function getPrice()
+    public function notify()
     {
-        return f_rand(0.65, 0.71);
+        /** @var Observer2 $observer */
+        foreach ($this->observers as $observer) {
+            $observer->handle();
+        }
     }
 }
 
-class Yen implements Currency
+class LogHandler implements Observer2
 {
-
-    private $_price;
-
-    public function __construct($price)
+    public function handle()
     {
-        $this->_price = $price;
-        echo self::class . " Original Price: {$price}" . PHP_EOL;
-    }
-
-    public function update()
-    {
-        $this->_price = $this->getPrice();
-        echo self::class . " Updated Price: {$this->_price}" . PHP_EOL;
-
-        return $this;
-    }
-
-    public function getPrice()
-    {
-        return f_rand(120.52, 122.50);
+        var_dump("We are logging to a file.");
     }
 }
 
-function f_rand($min = 0, $max = 1, $mul = 1000000)
+class LoginCountHandler implements Observer2
 {
-    if ($min > $max) {
-        throw new Exception('You are dumb.');
+    public function handle()
+    {
+        var_dump("We are incrementing the login count.");
     }
-
-    return mt_rand(($min * $mul), ($max * $mul)) / $mul;
 }
 
-// ------------------
-// EXAMPLE USAGE:
-// ------------------
-$priceSimulator = new PriceSimulator();
-$yen = new Yen(12);
-$pound = new Pound(200);
-
-$priceSimulator->addCurrency($yen)
-    ->addCurrency($pound);
-
-echo PHP_EOL;
-
-$priceSimulator->updatePrices();
-
-echo PHP_EOL;
-
-$priceSimulator->updatePrices();
-
-echo PHP_EOL;
-
-// ------------------
-// ADDING A NEW CLASS TO OBSERVE:
-// ------------------
-class Dollar implements Currency
+class SendLoginEmail implements Observer2
 {
-    private $_price;
-
-    public function __construct($price)
+    public function handle()
     {
-        $this->_price = $price;
-        echo self::class . " Original Price: {$price}" . PHP_EOL;
-    }
-
-    public function update()
-    {
-        $this->_price = $this->getPrice();
-        echo self::class . " Updated Price: {$this->_price}" . PHP_EOL;
-
-        return $this;
-    }
-
-    public function getPrice()
-    {
-        return f_rand(2.12, 5.60);
+        var_dump("We are sending the login email");
     }
 }
 
-// ------------------
-// USING THE NEW CLASS:
-// ------------------
-$dollar = new Dollar(62.15);
-$priceSimulator->addCurrency($dollar);
+// The user logs in.
+$login = new LoginEvent();
 
-echo PHP_EOL;
+$login->attach(new LogHandler())
+    ->attachMultiple(array(
+        new LoginCountHandler(),
+        new SendLoginEmail(),
+    ));
 
-$priceSimulator->updatePrices();
-
+$login->notify();
