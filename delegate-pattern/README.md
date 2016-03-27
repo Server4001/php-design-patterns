@@ -1,0 +1,1 @@
+The delegate pattern can be used in place of log if/else (or switch) conditional statements. You can usually spot where a delegate pattern comes in handy when you notice you access an object through several methods that have subtle differences in their output and you use conditionals if/else in another part of the application.
